@@ -13,7 +13,7 @@ from torch.optim import AdamW
 from transformers import RobertaTokenizer, RobertaModel
 from peft import get_peft_model, LoraConfig, TaskType
 
-# Fix seed for reproducibility
+# Fix seed
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
@@ -24,15 +24,14 @@ def set_seed(seed=42):
 
 set_seed(42)
 
-# Configuration
-EPOCHS = 3
+# Config
+EPOCHS = 5
 BATCH_SIZE = 8
 USE_LORA_OPTIONS = [False, True]
 POOLING_TYPE = "lstm"
 OVERLAP_RATIO = 0.5
 CHUNK_SIZE = 512
 TRAIN_PATH = "../dataset/SDC_train_resilience_r.jsonl"
-EVAL_PATH = "../dataset/SDC_test_resilience_r.jsonl"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
@@ -45,7 +44,6 @@ def load_data(path):
     return pd.DataFrame(data, columns=["code", "label"])
 
 train_data = load_data(TRAIN_PATH)
-eval_data = load_data(EVAL_PATH)
 
 # Tokenizer
 tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
@@ -129,9 +127,10 @@ class BertRegressor(nn.Module):
         hidden_dim = self.bert.config.hidden_size
         if pooling_type == "lstm":
             self.lstm = nn.LSTM(hidden_dim, lstm_hidden_size, batch_first=True)
-            self.regressor = nn.Linear(lstm_hidden_size, output_size)
+            final_dim = lstm_hidden_size
         else:
-            self.regressor = nn.Linear(hidden_dim, output_size)
+            final_dim = hidden_dim
+        self.regressor = nn.Linear(final_dim, output_size)
 
     def forward(self, input_ids, attention_mask):
         batch_size, seq_len, chunk_size = input_ids.size()
@@ -150,8 +149,6 @@ class BertRegressor(nn.Module):
         return torch.sigmoid(self.regressor(pooled))
 
 # Run comparison
-results = {}
-
 for use_lora in USE_LORA_OPTIONS:
     tag = "LoRA" if use_lora else "Full"
     print(f"\n==== Training with {tag} Fine-Tuning ====")
@@ -171,9 +168,13 @@ for use_lora in USE_LORA_OPTIONS:
     trainable = count_trainable_parameters(model)
     print(f"Total Params: {total:,}, Trainable: {trainable:,} ({trainable/total:.2%})")
 
+    if DEVICE.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(DEVICE)
+
     train_losses = []
     start_time = time.time()
     for epoch in range(EPOCHS):
+        epoch_start = time.time()
         epoch_loss = 0
         for batch in train_loader:
             model.train()
@@ -187,24 +188,16 @@ for use_lora in USE_LORA_OPTIONS:
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
+        epoch_time = time.time() - epoch_start
         avg_loss = epoch_loss / len(train_loader)
-        print(f"Epoch {epoch + 1}: Loss = {avg_loss:.4f}")
+        print(f"Epoch {epoch + 1}: Loss = {avg_loss:.4f}, Time = {epoch_time:.2f}s")
         train_losses.append(avg_loss)
-    total_time = time.time() - start_time
-    results[tag] = {
-        "train_time": total_time,
-        "losses": train_losses,
-        "params": trainable,
-    }
 
-# Plot results
-plt.figure()
-for tag in results:
-    plt.plot(results[tag]["losses"], label=f"{tag} (Time: {results[tag]['train_time']:.1f}s)")
-plt.xlabel("Epoch")
-plt.ylabel("Training Loss")
-plt.title(f"Training Loss Comparison ({POOLING_TYPE} pooling)")
-plt.legend()
-plt.tight_layout()
-plt.savefig("lora_vs_full_finetune_loss.png")
-plt.show()
+    total_time = time.time() - start_time
+    print(f"Total Training Time: {total_time:.2f}s")
+    if DEVICE.type == "cuda":
+        peak_mem = torch.cuda.max_memory_allocated(DEVICE) / (1024**2)
+        print(f"Max GPU Memory Used: {peak_mem:.2f} MB")
+
+    print("-" * 50)
+
