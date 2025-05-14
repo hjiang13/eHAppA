@@ -51,11 +51,10 @@ with open(evalDataPath, "r") as data_file:
 
 # Dataset class
 class SentimentDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_token_len=512, chunk_size=512, overlap_ratio=0.5):
+    def __init__(self, texts, labels, tokenizer, chunk_size=512, overlap_ratio=0.0):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
-        self.max_token_len = max_token_len
         self.chunk_size = chunk_size
         self.overlap_ratio = overlap_ratio
 
@@ -65,27 +64,21 @@ class SentimentDataset(Dataset):
     def __getitem__(self, idx):
         text = self.texts[idx]
         label = self.labels[idx]
-        tokens = self.tokenizer.encode_plus(
-            text,
-            max_length=self.max_token_len,
-            truncation=True,
-            padding='max_length',
-            add_special_tokens=True,
-            return_tensors="pt"
-        )
-        input_ids = tokens['input_ids'].squeeze()
-        attention_mask = tokens['attention_mask'].squeeze()
+        tokens = self.tokenizer.encode(text, add_special_tokens=True, return_tensors="pt").squeeze()
+        attention_mask = torch.ones_like(tokens)
 
         stride = int(self.chunk_size * (1 - self.overlap_ratio))
         if stride <= 0:
             stride = 1
 
-        input_ids_chunks = input_ids.unfold(0, self.chunk_size, stride)
-        attention_mask_chunks = attention_mask.unfold(0, self.chunk_size, stride)
+        total_len = tokens.size(0)
+        if total_len < self.chunk_size:
+            pad_len = self.chunk_size - total_len
+            tokens = F.pad(tokens, (0, pad_len), value=self.tokenizer.pad_token_id)
+            attention_mask = F.pad(attention_mask, (0, pad_len), value=0)
 
-        max_chunks = input_ids.shape[0] // stride
-        input_ids_chunks = input_ids_chunks[:max_chunks]
-        attention_mask_chunks = attention_mask_chunks[:max_chunks]
+        input_ids_chunks = tokens.unfold(0, self.chunk_size, stride)
+        attention_mask_chunks = attention_mask.unfold(0, self.chunk_size, stride)
 
         return {
             'input_ids': input_ids_chunks,
@@ -130,7 +123,7 @@ loss_fn = nn.MSELoss()
 
 # Training
 model.train()
-for epoch in range(5):
+for epoch in range(1):
     for batch in train_loader:
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
