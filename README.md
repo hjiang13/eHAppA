@@ -118,4 +118,4 @@ LoRA: Low-Rank Adaptation of Large Language Models
 
 
 ### 👨‍🔬 Maintainer
-Developed and maintained by Hailong Jiang (jiang13 at kent.edu), 2025.
+Developed and maintained by Hailong Jiang (hjiang13 at kent.edu), 2025.
