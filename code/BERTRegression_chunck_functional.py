@@ -183,8 +183,8 @@ class BertRegressor(nn.Module):
         elif self.pooling_type == "attn":
             pooled = self.pooling(cls_embeddings)
         elif self.pooling_type == "lstm":
-            _, (h_n, _) = self.lstm(cls_embeddings)
-            pooled = h_n.squeeze(0)
+            _, (hidden, _) = self.lstm(cls_embeddings)
+            pooled = hidden.squeeze(0)
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 
