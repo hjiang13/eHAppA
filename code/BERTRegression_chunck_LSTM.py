@@ -10,6 +10,20 @@ import os
 import torch.nn.functional as F
 from torch.optim import AdamW
 import argparse
+import random
+import numpy as np
+
+# Set random seed for reproducibility
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(42)
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
@@ -85,8 +99,8 @@ tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
 # Build datasets and dataloaders
 train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=args.overlap_ratio)
 eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=args.overlap_ratio)
-train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-eval_loader = DataLoader(eval_dataset, batch_size=1)
+train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, drop_last=False)
+eval_loader = DataLoader(eval_dataset, batch_size=1, shuffle=False)
 
 # Regression model with LSTM
 class BertRegressor(nn.Module):
@@ -116,7 +130,7 @@ loss_fn = nn.MSELoss()
 
 # Training
 model.train()
-for epoch in range(5):
+for epoch in range(1):
     for batch in train_loader:
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
