@@ -1,0 +1,34 @@
+Pooling | Overlap | LoRA | Final MSE
+--------|---------|------|-----------
+mean    | 0       | off  | 0.0763
+mean    | 0       | on   | 0.0572
+mean    | 0.25    | off  | 0.0764
+mean    | 0.25    | on   | 0.0576
+mean    | 0.5     | off  | 0.0816
+mean    | 0.5     | on   | 0.0551
+mean    | 0.75    | off  | 0.0863
+mean    | 0.75    | on   | 0.0601
+max     | 0       | off  | 0.0553
+max     | 0       | on   | 0.0660
+max     | 0.25    | off  | 0.0506
+max     | 0.25    | on   | 0.0686
+max     | 0.5     | off  | 0.0555
+max     | 0.5     | on   | 0.0535
+max     | 0.75    | off  | 0.0660
+max     | 0.75    | on   | 0.0628
+attn    | 0       | off  | 0.0621
+attn    | 0       | on   | 0.0612
+attn    | 0.25    | off  | 0.0670
+attn    | 0.25    | on   | 0.0600
+attn    | 0.5     | off  | 0.0642
+attn    | 0.5     | on   | 0.0619
+attn    | 0.75    | off  | 0.0625
+attn    | 0.75    | on   | 0.0605
+lstm    | 0       | off  | 0.0718
+lstm    | 0       | on   | 0.0674
+lstm    | 0.25    | off  | 0.0799
+lstm    | 0.25    | on   | 0.0740
+lstm    | 0.5     | off  | 0.0783
+lstm    | 0.5     | on   | 0.0728
+lstm    | 0.75    | off  | 0.0761
+lstm    | 0.75    | on   | 0.0738
