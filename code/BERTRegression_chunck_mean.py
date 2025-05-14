@@ -13,6 +13,7 @@ import argparse
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+from peft import get_peft_model, LoraConfig, TaskType
 
 # Set random seed for reproducibility
 def set_seed(seed=42):
@@ -29,6 +30,7 @@ set_seed(42)
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--overlap_ratio', type=float, default=0.0, help='Overlap ratio between chunks (0.0 ~ 1.0)')
+parser.add_argument('--use_lora', action='store_true', help='Enable LoRA on BERT')
 args = parser.parse_args()
 
 # Set device
@@ -126,11 +128,25 @@ class SentimentDataset(Dataset):
             'labels': torch.tensor(label, dtype=torch.float)
         }
 
-# Regression model with Mean Pooling
+# Regression model with Mean Pooling and optional LoRA
 class BertRegressor(nn.Module):
-    def __init__(self, bert_model="neulab/codebert-cpp", output_size=1):
+    def __init__(self, bert_model="neulab/codebert-cpp", output_size=1, use_lora=False):
         super().__init__()
-        self.bert = RobertaModel.from_pretrained(bert_model)
+        base_model = RobertaModel.from_pretrained(bert_model)
+        if use_lora:
+            lora_config = LoraConfig(
+                task_type=TaskType.FEATURE_EXTRACTION,
+                inference_mode=False,
+                r=8,
+                lora_alpha=32,
+                lora_dropout=0.1,
+                target_modules=["query", "value"]
+            )
+            self.bert = get_peft_model(base_model, lora_config)
+            self.bert.print_trainable_parameters()
+        else:
+            self.bert = base_model
+
         self.regressor = nn.Linear(self.bert.config.hidden_size, output_size)
 
     def forward(self, input_ids, attention_mask):
@@ -152,7 +168,7 @@ train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, drop_last=F
 eval_loader = DataLoader(eval_dataset, batch_size=1, shuffle=False)
 
 # Initialize model, optimizer, loss
-model = BertRegressor().to(device)
+model = BertRegressor(use_lora=args.use_lora).to(device)
 optimizer = AdamW(model.parameters(), lr=5e-5)
 loss_fn = nn.MSELoss()
 
