@@ -102,7 +102,7 @@ loss_fn = nn.MSELoss()
 
 # Training
 model.train()
-for epoch in range(5):
+for epoch in range(4):
     for batch in train_loader:
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
