@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-from transformers import BertTokenizer, BertModel, AdamW
+from transformers.optimization import BertTokenizer, BertModel, AdamW
 from keybert import KeyBERT
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -10,7 +10,7 @@ import json
 import os
 import torch.nn.functional as F
 
-from transformers.optimization import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
+from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 from transformers import LongformerConfig, LongformerModel
 
