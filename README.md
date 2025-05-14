@@ -70,13 +70,13 @@ chmod +x run_experiments_with_freeze.sh
 ```
 This will iterate over:
 
-Pooling types: mean, max, attn, lstm
+**Pooling types:** `mean`, `max`, `attn`, `lstm`
 
-Overlap ratios: 0.0, 0.25, 0.5, 0.75
+**Overlap ratios:** `0.0`, `0.25`, `0.5`, `0.75`
 
-LoRA on / off
+**LoRA** `on` / `off`
 
-Encoder frozen / not frozen
+**Encoder** `frozen` / `not frozen`
 
 Final MSE results are logged in:
 ```
