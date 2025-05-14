@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-from transformers import BertTokenizer, BertModel
+from transformers import RobertaTokenizer, RobertaModel
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from torch import nn
@@ -66,7 +66,7 @@ class SentimentDataset(Dataset):
         }
 
 # Load tokenizer
-tokenizer = BertTokenizer.from_pretrained("neulab/codebert-cpp")
+tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
 
 # Build datasets and dataloaders
 train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer)
@@ -78,7 +78,7 @@ eval_loader = DataLoader(eval_dataset, batch_size=1)
 class BertRegressor(nn.Module):
     def __init__(self, bert_model="neulab/codebert-cpp", lstm_hidden_size=512, output_size=1):
         super().__init__()
-        self.bert = BertModel.from_pretrained(bert_model)
+        self.bert = RobertaModel.from_pretrained(bert_model)
         self.lstm = nn.LSTM(self.bert.config.hidden_size, lstm_hidden_size, batch_first=True)
         self.regressor = nn.Linear(lstm_hidden_size, output_size)
 
