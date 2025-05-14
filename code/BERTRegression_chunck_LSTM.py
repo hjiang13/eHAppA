@@ -9,6 +9,12 @@ import json
 import os
 import torch.nn.functional as F
 from torch.optim import AdamW
+import argparse
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('--overlap_ratio', type=float, default=0.0, help='Overlap ratio between chunks (0.0 ~ 1.0)')
+args = parser.parse_args()
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -77,8 +83,8 @@ class SentimentDataset(Dataset):
 tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
 
 # Build datasets and dataloaders
-train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=0.5)
-eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=0.5)
+train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=args.overlap_ratio)
+eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=args.overlap_ratio)
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
 eval_loader = DataLoader(eval_dataset, batch_size=1)
 
