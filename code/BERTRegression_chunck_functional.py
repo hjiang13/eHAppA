@@ -142,7 +142,19 @@ class BertRegressor(nn.Module):
         super().__init__()
         from transformers import RobertaModel  # re-import if needed inside this block
         base_model = RobertaModel.from_pretrained(bert_model)
-        self.bert = base_model
+        if use_lora:
+            lora_config = LoraConfig(
+                task_type=TaskType.FEATURE_EXTRACTION,
+                inference_mode=False,
+                r=8,
+                lora_alpha=32,
+                lora_dropout=0.1,
+                target_modules=["query", "value"]
+            )
+            self.bert = get_peft_model(base_model, lora_config)
+            self.bert.print_trainable_parameters()
+        else:
+            self.bert = base_model
 
         self.pooling_type = pooling_type
         hidden_dim = self.bert.config.hidden_size
