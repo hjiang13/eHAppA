@@ -51,7 +51,7 @@ with open(evalDataPath, "r") as data_file:
 
 # Dataset class
 class SentimentDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_token_len=512, chunk_size=512, overlap_ratio=0.0):
+    def __init__(self, texts, labels, tokenizer, max_token_len=512, chunk_size=512, overlap_ratio=0.5):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
