@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-from transformers.optimization import BertTokenizer, BertModel, AdamW
+from transformers import BertTokenizer, BertModel, AdamW
 from keybert import KeyBERT
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
