@@ -126,35 +126,23 @@ class SentimentDataset(Dataset):
             'labels': torch.tensor(label, dtype=torch.float)
         }
     
-# Attention Pooling module
+# Regression model with configurable pooling (mean, max, attn, lstm)
 class AttentionPooling(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
         self.attn = nn.Linear(input_dim, 1)
 
     def forward(self, x):  # x: [B, N, H]
-        scores = self.attn(x).squeeze(-1)  # [B, N]
-        weights = torch.softmax(scores, dim=1)  # [B, N]
-        return torch.sum(x * weights.unsqueeze(-1), dim=1)  # [B, H]
+        scores = self.attn(x).squeeze(-1)
+        weights = torch.softmax(scores, dim=1)
+        return torch.sum(x * weights.unsqueeze(-1), dim=1)
 
-# Regression model
 class BertRegressor(nn.Module):
-    def __init__(self, bert_model="neulab/codebert-cpp", output_size=1, use_lora=False, pooling_type="mean"):
+    def __init__(self, bert_model="neulab/codebert-cpp", output_size=1, use_lora=False, pooling_type="mean", lstm_hidden_size=512):
         super().__init__()
+        from transformers import RobertaModel  # re-import if needed inside this block
         base_model = RobertaModel.from_pretrained(bert_model)
-        if use_lora:
-            lora_config = LoraConfig(
-                task_type=TaskType.FEATURE_EXTRACTION,
-                inference_mode=False,
-                r=8,
-                lora_alpha=32,
-                lora_dropout=0.1,
-                target_modules=["query", "value"]
-            )
-            self.bert = get_peft_model(base_model, lora_config)
-            self.bert.print_trainable_parameters()
-        else:
-            self.bert = base_model
+        self.bert = base_model
 
         self.pooling_type = pooling_type
         hidden_dim = self.bert.config.hidden_size
@@ -162,9 +150,10 @@ class BertRegressor(nn.Module):
         if pooling_type == "attn":
             self.pooling = AttentionPooling(hidden_dim)
         elif pooling_type == "lstm":
-            self.lstm = nn.LSTM(hidden_dim, hidden_dim, batch_first=True)
-
-        self.regressor = nn.Linear(hidden_dim, output_size)
+            self.lstm = nn.LSTM(hidden_dim, lstm_hidden_size, batch_first=True)
+            self.regressor = nn.Linear(lstm_hidden_size, output_size)
+        else:
+            self.regressor = nn.Linear(hidden_dim, output_size)
 
     def forward(self, input_ids, attention_mask):
         batch_size, seq_len, chunk_size = input_ids.size()
@@ -189,6 +178,7 @@ class BertRegressor(nn.Module):
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 
         return torch.sigmoid(self.regressor(pooled))
+
 
 # Prepare datasets and loaders
 train_dataset = SentimentDataset(
