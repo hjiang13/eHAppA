@@ -10,7 +10,7 @@ import json
 import os
 import torch.nn.functional as F
 
-from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
+from transformers.optimization import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 from transformers import LongformerConfig, LongformerModel
 
