@@ -140,8 +140,8 @@ class AttentionPooling(nn.Module):
 class BertRegressor(nn.Module):
     def __init__(self, bert_model="neulab/codebert-cpp", output_size=1, use_lora=False, pooling_type="mean", lstm_hidden_size=512):
         super().__init__()
-        from transformers import RobertaModel  # re-import if needed inside this block
         base_model = RobertaModel.from_pretrained(bert_model)
+
         if use_lora:
             lora_config = LoraConfig(
                 task_type=TaskType.FEATURE_EXTRACTION,
@@ -152,20 +152,22 @@ class BertRegressor(nn.Module):
                 target_modules=["query", "value"]
             )
             self.bert = get_peft_model(base_model, lora_config)
-            self.bert.print_trainable_parameters()
         else:
             self.bert = base_model
 
         self.pooling_type = pooling_type
         hidden_dim = self.bert.config.hidden_size
 
-        if pooling_type == "attn":
-            self.pooling = AttentionPooling(hidden_dim)
-        elif pooling_type == "lstm":
+        if pooling_type == "lstm":
             self.lstm = nn.LSTM(hidden_dim, lstm_hidden_size, batch_first=True)
-            self.regressor = nn.Linear(lstm_hidden_size, output_size)
+            final_dim = lstm_hidden_size
         else:
-            self.regressor = nn.Linear(hidden_dim, output_size)
+            if pooling_type == "attn":
+                self.pooling = AttentionPooling(hidden_dim)
+            final_dim = hidden_dim
+
+        # ✅ 创建回归头，不论 pooling 类型
+        self.regressor = nn.Linear(final_dim, output_size)
 
     def forward(self, input_ids, attention_mask):
         batch_size, seq_len, chunk_size = input_ids.size()
@@ -173,9 +175,9 @@ class BertRegressor(nn.Module):
         attention_mask = attention_mask.view(-1, chunk_size).to(device)
 
         with torch.no_grad():
-            bert_output = self.bert(input_ids, attention_mask=attention_mask)
+            bert_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
 
-        cls_embeddings = bert_output.last_hidden_state[:, 0, :].view(batch_size, seq_len, -1)  # [B, N, H]
+        cls_embeddings = bert_output.last_hidden_state[:, 0, :].view(batch_size, seq_len, -1)
 
         if self.pooling_type == "mean":
             pooled = torch.mean(cls_embeddings, dim=1)
