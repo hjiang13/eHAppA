@@ -105,7 +105,7 @@ class SentimentDataset(Dataset):
 
         input_ids_chunks = tokens.unfold(0, self.chunk_size, stride)
         attention_mask_chunks = attention_mask.unfold(0, self.chunk_size, stride)
-        print(f"[DEBUG] Sample {idx} has {input_ids_chunks.size(0)} chunks")
+        #print(f"[DEBUG] Sample {idx} has {input_ids_chunks.size(0)} chunks")
 
         num_chunks = input_ids_chunks.size(0)
         if num_chunks < self.max_chunks:
