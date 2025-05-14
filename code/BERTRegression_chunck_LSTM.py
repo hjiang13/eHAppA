@@ -31,12 +31,13 @@ with open(evalDataPath, "r") as data_file:
 
 # Dataset class
 class SentimentDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_token_len=512, chunk_size=512):
+    def __init__(self, texts, labels, tokenizer, max_token_len=512, chunk_size=512, overlap_ratio=0.0):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
         self.max_token_len = max_token_len
         self.chunk_size = chunk_size
+        self.overlap_ratio = overlap_ratio
 
     def __len__(self):
         return len(self.texts)
@@ -55,9 +56,16 @@ class SentimentDataset(Dataset):
         input_ids = tokens['input_ids'].squeeze()
         attention_mask = tokens['attention_mask'].squeeze()
 
-        total_chunks = len(input_ids) // self.chunk_size
-        input_ids_chunks = input_ids.unfold(0, self.chunk_size, self.chunk_size)[:total_chunks]
-        attention_mask_chunks = attention_mask.unfold(0, self.chunk_size, self.chunk_size)[:total_chunks]
+        stride = int(self.chunk_size * (1 - self.overlap_ratio))
+        if stride <= 0:
+            stride = 1
+
+        input_ids_chunks = input_ids.unfold(0, self.chunk_size, stride)
+        attention_mask_chunks = attention_mask.unfold(0, self.chunk_size, stride)
+
+        max_chunks = input_ids.shape[0] // stride
+        input_ids_chunks = input_ids_chunks[:max_chunks]
+        attention_mask_chunks = attention_mask_chunks[:max_chunks]
 
         return {
             'input_ids': input_ids_chunks,
@@ -69,8 +77,8 @@ class SentimentDataset(Dataset):
 tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
 
 # Build datasets and dataloaders
-train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer)
-eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer)
+train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=0.5)
+eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=0.5)
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
 eval_loader = DataLoader(eval_dataset, batch_size=1)
 
@@ -102,7 +110,7 @@ loss_fn = nn.MSELoss()
 
 # Training
 model.train()
-for epoch in range(5):
+for epoch in range(1):
     for batch in train_loader:
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
