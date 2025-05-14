@@ -12,6 +12,7 @@ from torch.optim import AdamW
 import argparse
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Set random seed for reproducibility
 def set_seed(seed=42):
@@ -49,14 +50,39 @@ with open(evalDataPath, "r") as data_file:
         line = json.loads(line)
         eval_data = pd.concat([eval_data, pd.DataFrame([[line["code"], line["label"]]], columns=['code', 'label'])])
 
+# Initialize tokenizer
+tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
+chunk_size = 512
+stride = int(chunk_size * (1 - args.overlap_ratio))
+if stride <= 0:
+    stride = 1
+
+# Estimate max_chunks based on training data
+def estimate_max_chunks(texts):
+    chunk_counts = []
+    for text in texts:
+        tokens = tokenizer.encode(text, add_special_tokens=True)
+        total_len = len(tokens)
+        if total_len < chunk_size:
+            chunk_counts.append(1)
+        else:
+            num_chunks = max(1, (total_len - chunk_size) // stride + 1)
+            chunk_counts.append(num_chunks)
+    print("Max chunks:", max(chunk_counts))
+    print("95th percentile chunks:", int(np.percentile(chunk_counts, 95)))
+    return int(np.percentile(chunk_counts, 95))
+
+max_chunks = estimate_max_chunks(train_data['code'].tolist())
+
 # Dataset class
 class SentimentDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, chunk_size=512, overlap_ratio=0.0):
+    def __init__(self, texts, labels, tokenizer, chunk_size=512, overlap_ratio=0.0, max_chunks=8):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
         self.chunk_size = chunk_size
         self.overlap_ratio = overlap_ratio
+        self.max_chunks = max_chunks
 
     def __len__(self):
         return len(self.texts)
@@ -80,18 +106,29 @@ class SentimentDataset(Dataset):
         input_ids_chunks = tokens.unfold(0, self.chunk_size, stride)
         attention_mask_chunks = attention_mask.unfold(0, self.chunk_size, stride)
 
+        # Pad or truncate to max_chunks
+        num_chunks = input_ids_chunks.size(0)
+        if num_chunks < self.max_chunks:
+            pad_len = self.max_chunks - num_chunks
+            pad_tensor = torch.full((pad_len, self.chunk_size), self.tokenizer.pad_token_id, dtype=torch.long)
+            input_ids_chunks = torch.cat([input_ids_chunks, pad_tensor], dim=0)
+            attention_mask_chunks = torch.cat([
+                attention_mask_chunks,
+                torch.zeros((pad_len, self.chunk_size), dtype=torch.long)
+            ], dim=0)
+        else:
+            input_ids_chunks = input_ids_chunks[:self.max_chunks]
+            attention_mask_chunks = attention_mask_chunks[:self.max_chunks]
+
         return {
             'input_ids': input_ids_chunks,
             'attention_mask': attention_mask_chunks,
             'labels': torch.tensor(label, dtype=torch.float)
         }
 
-# Load tokenizer
-tokenizer = RobertaTokenizer.from_pretrained("neulab/codebert-cpp")
-
 # Build datasets and dataloaders
-train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=args.overlap_ratio)
-eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer, chunk_size=512, overlap_ratio=args.overlap_ratio)
+train_dataset = SentimentDataset(train_data['code'].to_numpy(), train_data['label'].to_numpy(), tokenizer, chunk_size=chunk_size, overlap_ratio=args.overlap_ratio, max_chunks=max_chunks)
+eval_dataset = SentimentDataset(eval_data['code'].to_numpy(), eval_data['label'].to_numpy(), tokenizer, chunk_size=chunk_size, overlap_ratio=args.overlap_ratio, max_chunks=max_chunks)
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, drop_last=False)
 eval_loader = DataLoader(eval_dataset, batch_size=1, shuffle=False)
 
@@ -123,7 +160,7 @@ loss_fn = nn.MSELoss()
 
 # Training
 model.train()
-for epoch in range(1):
+for epoch in range(5):
     for batch in train_loader:
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
