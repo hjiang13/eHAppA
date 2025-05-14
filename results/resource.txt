@@ -1,0 +1,21 @@
+==== Training with Full Fine-Tuning ====
+Total Params: 127,271,681, Trainable: 127,271,681 (100.00%)
+Epoch 1: Loss = 0.0696, Time = 4.67s
+Epoch 2: Loss = 0.0568, Time = 4.48s
+Epoch 3: Loss = 0.0513, Time = 4.48s
+Epoch 4: Loss = 0.0494, Time = 4.48s
+Epoch 5: Loss = 0.0477, Time = 4.48s
+Total Training Time: 22.58s
+Max GPU Memory Used: 2755.50 MB
+--------------------------------------------------
+
+==== Training with LoRA Fine-Tuning ====
+Total Params: 127,566,593, Trainable: 2,920,961 (2.29%)
+Epoch 1: Loss = 0.0734, Time = 4.66s
+Epoch 2: Loss = 0.0582, Time = 4.66s
+Epoch 3: Loss = 0.0521, Time = 4.65s
+Epoch 4: Loss = 0.0505, Time = 4.65s
+Epoch 5: Loss = 0.0492, Time = 4.65s
+Total Training Time: 23.27s
+Max GPU Memory Used: 2755.87 MB
+--------------------------------------------------wei
